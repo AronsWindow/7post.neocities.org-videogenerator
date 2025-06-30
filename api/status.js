@@ -1,33 +1,36 @@
+// api/status.js
+import fetch from 'node-fetch';
+
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const API_TOKEN = process.env.REPLICATE_API_TOKEN;
-  if (!API_TOKEN) {
-    return res.status(500).json({ error: "No API token configured" });
-  }
+  const { id } = req.query;
 
-  const predictionId = req.query.id;
-  if (!predictionId) {
-    return res.status(400).json({ error: "Missing prediction id" });
+  if (!process.env.REPLICATE_API_TOKEN) {
+    return res.status(500).json({ error: 'Missing Replicate API Token' });
   }
 
   try {
-    const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+    const response = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
       headers: {
-        Authorization: `Token ${API_TOKEN}`,
-      },
+        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ error: errorText });
+      const errorDetails = await response.json();
+      console.error('Replicate API Error:', errorDetails);
+      return res.status(500).json({ error: 'Failed to fetch prediction status', details: errorDetails });
     }
 
     const prediction = await response.json();
-    res.status(200).json(prediction);
+    return res.status(200).json(prediction);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Server error:', error);
+    return res.status(500).json({ error: 'Server error fetching prediction status' });
   }
 }
